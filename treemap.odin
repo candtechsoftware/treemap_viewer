@@ -21,15 +21,16 @@ DisplayNode :: struct {
 }
 
 TreeNode :: struct {
-	name:   string,
-	index:  int,
-	size:   f64,
-	parent: ^TreeNode,
-    children: [dynamic]^TreeNode,
+	name:     string,
+	index:    int,
+	size:     f64,
+	parent:   ^TreeNode,
+	children: [dynamic]^TreeNode,
 }
 TreeMap :: struct {
-	nodes: [dynamic]^TreeNode,
-	root:  ^TreeNode,
+	nodes:  [dynamic]^TreeNode,
+	root:   ^TreeNode,
+	leaves: map[^TreeNode]bool,
 }
 
 
@@ -37,12 +38,15 @@ add_node :: proc(treemap: ^TreeMap, name: string, parent: ^TreeNode) -> ^TreeNod
 	node: ^TreeNode = new(TreeNode)
 	node.name = strings.clone(name)
 	index := len(treemap.nodes)
-    node.parent = parent
+	node.parent = parent
 	node.index = index
 
-    append(&treemap.nodes, node)
-    if parent != nil {
-        append(&parent.children, node)
-    }
+	append(&treemap.nodes, node)
+	if parent != nil {
+		append(&parent.children, node)
+        treemap.leaves[parent] = false
+	}
+
+    treemap.leaves[node] = true
 	return node
 }
