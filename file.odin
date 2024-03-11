@@ -67,13 +67,14 @@ visit :: proc(
 	return 0, false
 }
 
-init_treemap :: proc(dir_arg: string) {
+init_treemap :: proc(dir_arg: string) -> ^TreeMap {
 	dir = dir_arg
 	treemap: ^TreeMap = new(TreeMap)
+    treemap.dirty = true
 	root := add_node(treemap, dir, nil)
 	dir_table = make(map[string]^TreeNode)
 	dir_table[dir] = root
 	filepath.walk(dir, visit, treemap)
 
-	compute_sizes(treemap)
+    return treemap
 }

@@ -15,8 +15,15 @@ State :: struct {
 	current_time: int,
 	font:         ^ttf.Font,
 	font_color:   sdl2.Color,
+	treemap:      ^TreeMap,
+	display:      ^TreeMapDisplay,
 }
 
+destroy_state :: proc(state: ^State) {
+	sdl2.DestroyRenderer(state.renderer)
+	sdl2.DestroyWindow(state.window)
+	sdl2.FreeSurface(state.surface)
+}
 init_state :: proc() -> (^State, Error) {
 	state: ^State = new(State)
 
@@ -42,6 +49,7 @@ init_state :: proc() -> (^State, Error) {
 	state.renderer = sdl2.CreateRenderer(state.window, -1, nil)
 
 	if ttf.Init() < 0 {
+		fmt.printf("Error initializing font")
 		return nil, .InitFont
 	}
 
@@ -67,18 +75,14 @@ draw_text :: proc(state: ^State) {
 }
 
 draw_current_treeemap :: proc(state: ^State) {
-	x0: i32 = WINDOW_WIDTH / 20
-	x1: i32 = WINDOW_WIDTH - x0
+	compute_sizes(state.treemap)
+	recompute_if_dirty(state.display)
+	rect := sdl2.Rect{0, 0, WINDOW_WIDTH, WINDOW_HEIGHT - 50}
 
-	y0 := x0
-	y1: i32 = WINDOW_HEIGHT / 10
+	color := sdl2.Color{0, 128, 128, 255}
 
-
-	rect := sdl2.Rect{x0, x1, y0, y1}
-	color := sdl2.Color{0, 255, 0, 255}
-
-	surface := sdl2.GetWindowSurface(state.window)
-	sdl2.FillRect(surface, &rect, sdl2.MapRGBA(nil, 0, 255, 0, 255))
+	sdl2.SetRenderDrawColor(state.renderer, 0, 128, 128, 128)
+	sdl2.RenderFillRect(state.renderer, &rect)
 
 }
 
@@ -92,8 +96,12 @@ main :: proc() {
 		return
 	}
 
-	init_treemap(os.args[1])
+	treemap := init_treemap(os.args[1])
 	state, _ := init_state()
+    state.treemap = treemap
+    state.display = init_treemap_display(treemap)
+
+	defer destroy_state(state)
 
 	loop: for {
 		event: sdl2.Event
@@ -103,15 +111,12 @@ main :: proc() {
 				break loop
 			}
 		}
-		sdl2.SetRenderDrawColor(state.renderer, 0xFF, 0xFF, 0xFF, 0xFF) // background color
-
-        // Clear window
+		sdl2.SetRenderDrawColor(state.renderer, 128, 128, 128, 255) // background color
 		sdl2.RenderClear(state.renderer)
-
-
-
 		draw_current_treeemap(state)
 		draw_current_treeemap_node(state)
 		sdl2.RenderPresent(state.renderer)
+
+
 	}
 }
