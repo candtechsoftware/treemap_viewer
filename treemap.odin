@@ -1,6 +1,7 @@
 package main
 
 import "core:strings"
+import "core:fmt"
 
 Vector4 :: struct {
 	r, g, b, a: int,
@@ -23,14 +24,17 @@ DisplayNode :: struct {
 TreeNode :: struct {
 	name:     string,
 	index:    int,
-	size:     f64,
+	size:     int,
 	parent:   ^TreeNode,
 	children: [dynamic]^TreeNode,
+	flags:    enum {
+		Leaf,
+		Parent,
+	},
 }
 TreeMap :: struct {
 	nodes:  [dynamic]^TreeNode,
 	root:   ^TreeNode,
-	leaves: map[^TreeNode]bool,
 }
 
 
@@ -40,13 +44,31 @@ add_node :: proc(treemap: ^TreeMap, name: string, parent: ^TreeNode) -> ^TreeNod
 	index := len(treemap.nodes)
 	node.parent = parent
 	node.index = index
+	node.flags = .Leaf
 
 	append(&treemap.nodes, node)
 	if parent != nil {
 		append(&parent.children, node)
-        treemap.leaves[parent] = false
+		parent.flags = .Parent
 	}
 
-    treemap.leaves[node] = true
 	return node
+}
+
+compute_sizes :: proc(treemap: ^TreeMap) {
+	for k in treemap.nodes {
+		if k.flags != .Leaf {
+			k.size = 0
+		}
+	}
+
+	#reverse for node in treemap.nodes {
+		if node.parent != nil {
+			node.parent.size += node.size
+		}
+	}
+    if len(treemap.nodes) > 0 {
+        root := treemap.nodes[0]
+        fmt.printfln("Root: %d", root.size)
+    }
 }
