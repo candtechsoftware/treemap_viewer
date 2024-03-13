@@ -16,7 +16,7 @@ TreeNode :: struct {
 	},
 	size:     f64,
 	coord:    struct {
-		x, y: int,
+		x, y, w, h: int,
 	},
 }
 TreeMap :: struct {
@@ -96,4 +96,26 @@ traverse_nodes :: proc(node: ^TreeNode, nodes: ^[dynamic]^TreeNode) {
 	for child in node.children {
 		traverse_nodes(child, nodes)
 	}
+}
+
+get_node_name :: proc(nodes: [dynamic]^TreeNode, x, y: int) -> (bool, string){
+	text := ""
+    flag := false
+	for n in nodes {
+		if is_in_node(n, x, y) {
+			text = n.name
+            flag = true
+		}
+	}
+	return flag, text
+
+}
+
+is_in_node :: proc(node: ^TreeNode, x, y: int) -> bool {
+	return(
+		node.coord.x >= x &&
+		node.coord.y >= y &&
+		node.coord.x <= x + node.coord.w &&
+		node.coord.y <= y + node.coord.h \
+	)
 }

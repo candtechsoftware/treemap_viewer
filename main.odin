@@ -2,6 +2,7 @@ package main
 
 import "core:fmt"
 import "core:os"
+import "core:strings"
 import "vendor:sdl2"
 import "vendor:sdl2/ttf"
 
@@ -17,6 +18,7 @@ State :: struct {
 	font_color:   sdl2.Color,
 	treemap:      ^TreeMap,
 	nodes:        [dynamic]^TreeNode,
+	filename:     cstring,
 }
 
 destroy_state :: proc(state: ^State) {
@@ -48,6 +50,7 @@ init_state :: proc() -> (^State, Error) {
 	}
 
 	state.renderer = sdl2.CreateRenderer(state.window, -1, nil)
+    state.filename = " "
 
 	if ttf.Init() < 0 {
 		fmt.printf("Error initializing font")
@@ -59,20 +62,29 @@ init_state :: proc() -> (^State, Error) {
 		fmt.printf("Error opening font: %v", ttf.GetError())
 		return nil, .InitFont
 	}
-	state.font_color = sdl2.Color{255, 255, 255, 0}
+	state.font_color = sdl2.Color{0, 0, 0, 255}
 
 
 	return state, nil
 }
 
 draw_text :: proc(state: ^State) {
-	surface := ttf.RenderText_Solid(state.font, "FileName", state.font_color)
+	surface := ttf.RenderText_Solid(state.font, state.filename, state.font_color)
+	if surface == nil {
+		fmt.printf("Surface is nil %v === %v \n", sdl2.GetError(), ttf.GetError)
+	}
 	texture := sdl2.CreateTextureFromSurface(state.renderer, surface)
+	if texture == nil {
+		fmt.printf("Texture is nil %v\n", sdl2.GetError())
+	}
 	text_w := surface.w
 	text_h := surface.h
 	defer sdl2.FreeSurface(surface)
+	defer sdl2.DestroyTexture(texture)
 	rect: sdl2.Rect = sdl2.Rect{0, 800 - text_h, text_w, text_h}
-	sdl2.RenderCopy(state.renderer, texture, nil, &rect)
+	if sdl2.RenderCopy(state.renderer, texture, nil, &rect) > 0 {
+		fmt.printfln("RenderCopy failed", sdl2.GetError())
+	}
 }
 
 draw_current_treeemap :: proc(using state: ^State) {
@@ -82,7 +94,7 @@ draw_current_treeemap :: proc(using state: ^State) {
 		return
 	}
 
-    prev_size := root.size
+	prev_size := root.size
 	for node, index in state.nodes {
 		draw_current_treeemap_node(state, node, i32(prev_size), i32(index))
 		prev_size = node.size
@@ -103,6 +115,10 @@ draw_current_treeemap_node :: proc(state: ^State, node: ^TreeNode, prev_size, in
 		i32(size),
 		i32(size),
 	}
+	node.coord.x = int(index + prev_size % WINDOW_HEIGHT)
+	node.coord.y = int(index + prev_size % WINDOW_HEIGHT)
+	node.coord.w = int(size)
+	node.coord.h = int(size)
 
 
 	color := sdl2.Color{u8(index + size) % 255, u8(index + 200) % 255, 128, 255}
@@ -129,15 +145,26 @@ main :: proc() {
 	defer destroy_state(state)
 
 	loop: for {
+		sdl2.SetRenderDrawColor(state.renderer, 200, 200, 200, 255) // background color
+		sdl2.RenderClear(state.renderer)
+
 		event: sdl2.Event
 		for sdl2.PollEvent(&event) {
 			#partial switch event.type {
 			case .KEYDOWN, .QUIT:
 				break loop
+			case .MOUSEMOTION:
+				{
+					x, y := event.motion.x, event.motion.y
+					ok, name := get_node_name(state.nodes, int(x), int(y))
+					if ok {
+						state.filename = strings.clone_to_cstring(name)
+					}
+
+				}
 			}
 		}
-		sdl2.SetRenderDrawColor(state.renderer, 128, 128, 128, 255) // background color
-		sdl2.RenderClear(state.renderer)
+		draw_text(state)
 		draw_current_treeemap(state)
 		sdl2.RenderPresent(state.renderer)
 
