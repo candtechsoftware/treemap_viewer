@@ -3,41 +3,26 @@ package main
 import "core:fmt"
 import "core:slice"
 import "core:strings"
-
-Vector4 :: struct {
-	r, g, b, a: int,
-}
-
-Vector2 :: struct {
-	x, y: int,
-}
-
-TreeMapDisplay :: struct {
-	nodes:   [dynamic]^DisplayNode,
-	treemap: ^TreeMap,
-    dirty: bool
-}
-
-DisplayNode :: struct {
-	index: int,
-	color: Vector4,
-}
+import "vendor:sdl2"
 
 TreeNode :: struct {
 	name:     string,
 	index:    int,
-	size:     int,
 	parent:   ^TreeNode,
 	children: [dynamic]^TreeNode,
 	flags:    enum {
 		Leaf,
 		Parent,
 	},
+	size:     f64,
+	coord:    struct {
+		x, y: int,
+	},
 }
 TreeMap :: struct {
 	nodes: [dynamic]^TreeNode,
 	root:  ^TreeNode,
-	dirty: bool,
+	size:  int,
 }
 
 
@@ -48,6 +33,7 @@ add_node :: proc(treemap: ^TreeMap, name: string, parent: ^TreeNode) -> ^TreeNod
 	node.parent = parent
 	node.index = index
 	node.flags = .Leaf
+	treemap.size += 1
 
 	append(&treemap.nodes, node)
 	if parent != nil {
@@ -60,9 +46,6 @@ add_node :: proc(treemap: ^TreeMap, name: string, parent: ^TreeNode) -> ^TreeNod
 
 
 compute_sizes :: proc(treemap: ^TreeMap) {
-	if !treemap.dirty do return
-	treemap.dirty = false
-
 	for k in treemap.nodes {
 		if k.flags != .Leaf {
 			k.size = 0
@@ -76,12 +59,10 @@ compute_sizes :: proc(treemap: ^TreeMap) {
 	}
 
 	for node in treemap.nodes {
-		fmt.printfln("Nodes before: %v\n-----\n", treemap.nodes)
 		slice.sort_by(treemap.nodes[:], proc(a, b: ^TreeNode) -> bool {
 			return a.size > b.size
 		})
 
-		fmt.printfln("Nodes after: %v\n======\n", treemap.nodes)
 	}
 
 
@@ -91,15 +72,28 @@ compute_sizes :: proc(treemap: ^TreeMap) {
 	}
 }
 
-init_treemap_display :: proc(treemap: ^TreeMap) -> ^TreeMapDisplay {
-	display: ^TreeMapDisplay = new(TreeMapDisplay)
-	display.treemap = treemap
-	display.nodes = make([dynamic]^DisplayNode)
-
-	return display
+traverse_treemap :: proc(treemap: ^TreeMap) -> [dynamic]^TreeNode {
+	nodes: [dynamic]^TreeNode = make([dynamic]^TreeNode)
+	root := treemap.root
+	if root == nil {
+		return nil
+	}
+	fmt.printfln("%T", nodes)
+	fmt.printfln("%T", root)
+	append(&nodes, root)
+	traverse_nodes(root, &nodes)
+	return nodes
 }
 
-recompute_if_dirty :: proc(display: ^TreeMapDisplay) {
-    if !display.dirty do return
-    display.dirty = false
+traverse_nodes :: proc(node: ^TreeNode, nodes: ^[dynamic]^TreeNode) {
+	if node == nil {
+		return
+	}
+	append(nodes, node)
+	if node.children == nil || len(node.children) == 0 {
+		return
+	}
+	for child in node.children {
+		traverse_nodes(child, nodes)
+	}
 }

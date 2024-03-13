@@ -46,7 +46,7 @@ add_file_node :: proc(treemap: ^TreeMap, info: os.File_Info) {
 	}
 
 	node := add_node(treemap, info.fullpath, parent)
-	node.size = int(info.size)
+	node.size = f64(info.size)
 }
 
 
@@ -70,11 +70,12 @@ visit :: proc(
 init_treemap :: proc(dir_arg: string) -> ^TreeMap {
 	dir = dir_arg
 	treemap: ^TreeMap = new(TreeMap)
-    treemap.dirty = true
-	root := add_node(treemap, dir, nil)
+	treemap.root = add_node(treemap, dir, nil)
+    treemap.size = 1
 	dir_table = make(map[string]^TreeNode)
-	dir_table[dir] = root
+	dir_table[dir] = treemap.root
 	filepath.walk(dir, visit, treemap)
 
     return treemap
 }
+

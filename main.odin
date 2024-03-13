@@ -16,7 +16,7 @@ State :: struct {
 	font:         ^ttf.Font,
 	font_color:   sdl2.Color,
 	treemap:      ^TreeMap,
-	display:      ^TreeMapDisplay,
+	nodes:        [dynamic]^TreeNode,
 }
 
 destroy_state :: proc(state: ^State) {
@@ -24,6 +24,7 @@ destroy_state :: proc(state: ^State) {
 	sdl2.DestroyWindow(state.window)
 	sdl2.FreeSurface(state.surface)
 }
+
 init_state :: proc() -> (^State, Error) {
 	state: ^State = new(State)
 
@@ -74,20 +75,41 @@ draw_text :: proc(state: ^State) {
 	sdl2.RenderCopy(state.renderer, texture, nil, &rect)
 }
 
-draw_current_treeemap :: proc(state: ^State) {
-	compute_sizes(state.treemap)
-	recompute_if_dirty(state.display)
-	rect := sdl2.Rect{0, 0, WINDOW_WIDTH, WINDOW_HEIGHT - 50}
+draw_current_treeemap :: proc(using state: ^State) {
+	root := treemap.root
+	if root == nil {
+		fmt.println("Root is null")
+		return
+	}
 
-	color := sdl2.Color{0, 128, 128, 255}
+    prev_size := root.size
+	for node, index in state.nodes {
+		draw_current_treeemap_node(state, node, i32(prev_size), i32(index))
+		prev_size = node.size
+	}
 
-	sdl2.SetRenderDrawColor(state.renderer, 0, 128, 128, 128)
-	sdl2.RenderFillRect(state.renderer, &rect)
 
 }
 
-draw_current_treeemap_node :: proc(state: ^State) {
-	draw_text(state)
+draw_current_treeemap_node :: proc(state: ^State, node: ^TreeNode, prev_size, index: i32) {
+	if node.size == 0 do return
+	parent_size: i32 =
+		node.parent != nil ? i32(int(node.parent.size) % int(WINDOW_HEIGHT)) : WINDOW_HEIGHT
+	size := i32(int(node.size) % int(parent_size))
+
+	rect := sdl2.Rect {
+		index + prev_size % WINDOW_HEIGHT,
+		index + prev_size % WINDOW_HEIGHT,
+		i32(size),
+		i32(size),
+	}
+
+
+	color := sdl2.Color{u8(index + size) % 255, u8(index + 200) % 255, 128, 255}
+
+	sdl2.SetRenderDrawColor(state.renderer, color.r, color.g, color.b, color.a)
+	sdl2.RenderDrawRect(state.renderer, &rect)
+
 }
 
 main :: proc() {
@@ -98,8 +120,11 @@ main :: proc() {
 
 	treemap := init_treemap(os.args[1])
 	state, _ := init_state()
-    state.treemap = treemap
-    state.display = init_treemap_display(treemap)
+	state.treemap = treemap
+	compute_sizes(treemap)
+
+	nodes := traverse_treemap(treemap)
+	state.nodes = nodes
 
 	defer destroy_state(state)
 
@@ -114,7 +139,6 @@ main :: proc() {
 		sdl2.SetRenderDrawColor(state.renderer, 128, 128, 128, 255) // background color
 		sdl2.RenderClear(state.renderer)
 		draw_current_treeemap(state)
-		draw_current_treeemap_node(state)
 		sdl2.RenderPresent(state.renderer)
 
 
