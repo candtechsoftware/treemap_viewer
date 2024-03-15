@@ -71,11 +71,10 @@ init_treemap :: proc(dir_arg: string) -> ^TreeMap {
 	dir = dir_arg
 	treemap: ^TreeMap = new(TreeMap)
 	treemap.root = add_node(treemap, dir, nil)
-    treemap.size = 1
+	treemap.size = 1
 	dir_table = make(map[string]^TreeNode)
 	dir_table[dir] = treemap.root
 	filepath.walk(dir, visit, treemap)
 
-    return treemap
+	return treemap
 }
-

@@ -50,7 +50,7 @@ init_state :: proc() -> (^State, Error) {
 	}
 
 	state.renderer = sdl2.CreateRenderer(state.window, -1, nil)
-    state.filename = " "
+	state.filename = "Test"
 
 	if ttf.Init() < 0 {
 		fmt.printf("Error initializing font")
@@ -62,7 +62,7 @@ init_state :: proc() -> (^State, Error) {
 		fmt.printf("Error opening font: %v", ttf.GetError())
 		return nil, .InitFont
 	}
-	state.font_color = sdl2.Color{0, 0, 0, 255}
+	state.font_color = sdl2.Color{200, 200, 200, 255}
 
 
 	return state, nil
@@ -88,41 +88,15 @@ draw_text :: proc(state: ^State) {
 }
 
 draw_current_treeemap :: proc(using state: ^State) {
-	root := treemap.root
-	if root == nil {
-		fmt.println("Root is null")
-		return
+	for n in state.treemap.nodes {
+		draw_current_treeemap_node(state, n)
 	}
-
-	prev_size := root.size
-	for node, index in state.nodes {
-		draw_current_treeemap_node(state, node, i32(prev_size), i32(index))
-		prev_size = node.size
-	}
-
-
 }
 
-draw_current_treeemap_node :: proc(state: ^State, node: ^TreeNode, prev_size, index: i32) {
+draw_current_treeemap_node :: proc(state: ^State, node: ^TreeNode) {
 	if node.size == 0 do return
-	parent_size: i32 =
-		node.parent != nil ? i32(int(node.parent.size) % int(WINDOW_HEIGHT)) : WINDOW_HEIGHT
-	size := i32(int(node.size) % int(parent_size))
-
-	rect := sdl2.Rect {
-		index + prev_size % WINDOW_HEIGHT,
-		index + prev_size % WINDOW_HEIGHT,
-		i32(size),
-		i32(size),
-	}
-	node.coord.x = int(index + prev_size % WINDOW_HEIGHT)
-	node.coord.y = int(index + prev_size % WINDOW_HEIGHT)
-	node.coord.w = int(size)
-	node.coord.h = int(size)
-
-
-	color := sdl2.Color{u8(index + size) % 255, u8(index + 200) % 255, 128, 255}
-
+	color := sdl2.Color{200, 200, 200, 255}
+	rect := sdl2.Rect{i32(node.x), i32(node.y), i32(node.w), i32(node.h)}
 	sdl2.SetRenderDrawColor(state.renderer, color.r, color.g, color.b, color.a)
 	sdl2.RenderDrawRect(state.renderer, &rect)
 
@@ -138,36 +112,34 @@ main :: proc() {
 	state, _ := init_state()
 	state.treemap = treemap
 	compute_sizes(treemap)
-
-	nodes := traverse_treemap(treemap)
-	state.nodes = nodes
+	fmt.println("compute_sizes completed")
+	squarify_from_root(treemap)
+	fmt.println("squarified done")
+	print_tree(treemap)
 
 	defer destroy_state(state)
 
 	loop: for {
-		sdl2.SetRenderDrawColor(state.renderer, 200, 200, 200, 255) // background color
+		sdl2.SetRenderDrawColor(state.renderer, 0, 0, 0, 255) // background color
 		sdl2.RenderClear(state.renderer)
 
 		event: sdl2.Event
 		for sdl2.PollEvent(&event) {
 			#partial switch event.type {
-			case .KEYDOWN, .QUIT:
+			case .QUIT:
 				break loop
 			case .MOUSEMOTION:
 				{
 					x, y := event.motion.x, event.motion.y
-					ok, name := get_node_name(state.nodes, int(x), int(y))
+					ok, name := get_node_name(state.treemap, i32(x), i32(y))
 					if ok {
 						state.filename = strings.clone_to_cstring(name)
 					}
-
 				}
 			}
 		}
-		draw_text(state)
+        draw_text(state)
 		draw_current_treeemap(state)
 		sdl2.RenderPresent(state.renderer)
-
-
 	}
 }
